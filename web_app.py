@@ -3,26 +3,43 @@ import tensorflow as tf
 import numpy as np
 import librosa
 import pickle
+from huggingface_hub import hf_hub_download
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 import os
 import tempfile
+import requests
 
-# Set page config
+MODEL_URL = "https://huggingface.co/Arup-ai/Attention-based-audio-captioning/resolve/main/model_best.keras?download=true"
+MODEL_FILE = "model/model_best.keras"
 st.set_page_config(
     page_title="Audio Caption Generator",
     page_icon="🎵",
     layout="centered"
 )
 
+def download_model_if_missing():
+    if not os.path.exists(MODEL_FILE):
+        st.warning("📥 Model not found locally, starting download...")
+        os.makedirs(os.path.dirname(MODEL_FILE), exist_ok=True)
+        try:
+            local_path = hf_hub_download(repo_id="Arup-ai/Attention-based-audio-captioning", filename="model_best.keras")
+            os.replace(local_path, MODEL_FILE)
+            st.success("✅ Model downloaded successfully!")
+        except Exception as e:
+            st.error(f"❌ Download failed: {e}")
+    else:
+        st.info("✅ Model already exists locally.")
+
 @st.cache_resource
 def load_model_and_tokenizer():
     try:
-        model = tf.keras.models.load_model('audio_captioning_model_best.keras')
-        with open('tokenizer.pkl', 'rb') as f:
+        download_model_if_missing()
+        model = tf.keras.models.load_model('model/model_best.keras')
+        with open('model/tokenizer.pkl', 'rb') as f:
             tokenizer = pickle.load(f)
             
-        with open('word_mappings.pkl', 'rb') as f:
+        with open('model/word_mappings.pkl', 'rb') as f:
             word_mappings = pickle.load(f)
             
         return model, tokenizer, word_mappings
@@ -96,7 +113,7 @@ if model is None:
     st.error("Could not load the model. Please check your file paths.")
     st.info("Make sure you have these files in your directory:")
     st.code("""
-    - audio_captioning_model_best.keras
+    - model_best.keras
     - tokenizer.pkl
     - word_mappings.pkl
     """)
